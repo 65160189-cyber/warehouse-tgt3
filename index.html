@@ -10,6 +10,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- เพิ่ม Library สำหรับสแกนเนอร์ผ่านกล้อง -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -30,6 +32,33 @@
         
         .live-dot { animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        /* สไตล์หน้าจอเปิดกล้องสแกน */
+        #scanner-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            background: #000;
+        }
+        #reader { width: 100% !important; height: 100% !important; border: none !important; }
+        #reader video { object-fit: cover !important; }
+        
+        .scan-frame-ui {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .scan-target {
+            width: 260px;
+            height: 260px;
+            border-radius: 32px;
+            position: relative;
+            box-shadow: 0 0 0 2000px rgba(0,0,0,0.6);
+        }
 
         @media print {
             .no-print { display: none !important; }
@@ -56,6 +85,31 @@
     </script>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors duration-300">
+
+    <!-- Camera Scanner UI -->
+    <div id="scanner-overlay">
+        <div id="reader"></div>
+        <div class="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-[1000]">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                <h3 class="text-white font-black text-sm uppercase tracking-widest">Scanning...</h3>
+            </div>
+            <button onclick="stopScanner()" class="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/20 active:scale-90 transition-all">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="scan-frame-ui">
+            <div class="scan-target">
+                <div class="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-primary rounded-tl-2xl"></div>
+                <div class="absolute -top-1 -right-1 w-10 h-10 border-t-4 border-r-4 border-primary rounded-tr-2xl"></div>
+                <div class="absolute -bottom-1 -left-1 w-10 h-10 border-b-4 border-l-4 border-primary rounded-bl-2xl"></div>
+                <div class="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-primary rounded-br-2xl"></div>
+            </div>
+        </div>
+        <div class="absolute bottom-20 left-0 right-0 text-center">
+            <p class="text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">Align barcode inside frame</p>
+        </div>
+    </div>
 
     <!-- Mobile Top Bar -->
     <header class="md:hidden sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex justify-between items-center">
@@ -236,13 +290,18 @@
                 </div>
 
                 <div class="grid grid-cols-1 gap-3">
-                    <div class="relative group scan-focus-ring bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="relative group scan-focus-ring bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm flex items-center">
                         <div class="absolute left-4 top-1/2 -translate-y-1/2 text-primary flex items-center gap-2">
-                            <i data-lucide="scan-barcode" class="w-5 h-5"></i>
+                            <i data-lucide="search" class="w-5 h-5"></i>
                             <div class="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 ml-1"></div>
                         </div>
-                        <input type="text" id="barcode-input" autocomplete="off" placeholder="สแกนหรือพิมพ์ KANBAN / PART NO / ORDER NO..." 
-                               class="w-full pl-16 pr-12 py-5 bg-transparent text-lg font-black outline-none placeholder:text-slate-300 placeholder:text-sm uppercase tracking-tight">
+                        <input type="text" id="barcode-input" autocomplete="off" placeholder="ค้นหา KANBAN / PART NO / ORDER NO..." 
+                               class="w-full pl-16 pr-16 py-5 bg-transparent text-lg font-black outline-none placeholder:text-slate-300 placeholder:text-sm uppercase tracking-tight">
+                        
+                        <!-- ปุ่มกล้องสแกน (Mobile Only) -->
+                        <button onclick="startScanner()" class="md:hidden absolute right-2 w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center active:bg-primary active:text-white transition-all">
+                            <i data-lucide="camera" class="w-6 h-6"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -490,6 +549,7 @@
         const todayStr = getTodayStr();
         let selectedRoundInModal = 'เช้า';
         let selectedOrderIds = new Set();
+        let html5QrCode = null;
 
         function updateClock() {
             const now = new Date();
@@ -514,6 +574,57 @@
         function toggleTheme() { 
             document.documentElement.classList.toggle('dark');
             localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        }
+
+        // --- SCANNER LOGIC (ใหม่) ---
+        async function startScanner() {
+            const overlay = document.getElementById('scanner-overlay');
+            overlay.style.display = 'block';
+
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { 
+                fps: 15, 
+                qrbox: { width: 260, height: 260 },
+                aspectRatio: 1.0 
+            };
+
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" }, 
+                    config, 
+                    (decodedText) => {
+                        // เมื่อสแกนติด
+                        if (navigator.vibrate) navigator.vibrate(100); 
+                        const input = document.getElementById('barcode-input');
+                        input.value = decodedText.trim().toUpperCase();
+                        
+                        // กรองรายการทันที
+                        updateDispatchList();
+                        
+                        // ปิดกล้อง
+                        stopScanner();
+                        showToast("สแกนสำเร็จ: " + decodedText);
+                    }
+                );
+            } catch (err) {
+                console.error("Camera access error:", err);
+                alert("ไม่สามารถเข้าถึงกล้องได้ กรุณาตรวจสอบการอนุญาตใช้งาน (Camera Permission)");
+                overlay.style.display = 'none';
+            }
+        }
+
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('scanner-overlay').style.display = 'none';
+                    html5QrCode = null;
+                }).catch(err => {
+                    console.error("Stop failed", err);
+                    document.getElementById('scanner-overlay').style.display = 'none';
+                });
+            } else {
+                document.getElementById('scanner-overlay').style.display = 'none';
+            }
         }
 
         function setSelectedRound(r) {
@@ -654,7 +765,6 @@
             showToast(`ส่งสินค้าเรียบร้อย ${totalQty} ชิ้น`); viewInvoice(historyId); updateDashboard();
         }
 
-        // --- REFUND LOGIC (คืนสินค้า) ---
         function confirmRefund(logId) {
             const modal = document.getElementById('refund-confirm-modal');
             const confirmBtn = document.getElementById('confirm-refund-btn');
@@ -672,26 +782,18 @@
                 for (const item of items) {
                     const order = await db.orders.get(item.orderId);
                     if (order) {
-                        // คืนค่า Stock และลดจำนวน Shipped Qty
                         await db.orders.update(item.orderId, {
                             qty: order.qty + item.qty,
                             shippedQty: Math.max(0, (order.shippedQty || 0) - item.qty)
                         });
                     }
                 }
-
-                // ลบ Log ทิ้งหลังจากคืนค่าเรียบร้อย
                 await db.history.delete(logId);
-                
                 showToast("คืนสินค้าสำเร็จ (Refunded)");
                 closeModal('refund-confirm-modal');
-                renderHistory(); // Refresh หน้า Logs
-                updateDashboard(); // Refresh Dashboard Stats
-            } catch (err) {
-                alert("เกิดข้อผิดพลาด: " + err.message);
-            } finally {
-                toggleLoading(false);
-            }
+                renderHistory(); updateDashboard();
+            } catch (err) { alert("เกิดข้อผิดพลาด: " + err.message); } 
+            finally { toggleLoading(false); }
         }
 
         async function updateDispatchList() {
@@ -840,6 +942,7 @@
         }
 
         function downloadInvoicePDF() { html2pdf().set({ margin: 10, filename: 'TGT3_Delivery_Bill.pdf', jsPDF: { format: 'a4' } }).from(document.getElementById('invoice-print-area')).save(); }
+        
         function showTab(tab) {
             ['dashboard', 'dispatch', 'stock', 'history'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
