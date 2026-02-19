@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Warehouse Smart Dashboard | Multi-User System</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -77,6 +77,8 @@
             color: white !important; 
             border-color: #3b82f6 !important;
         }
+        
+        .hidden { display: none !important; }
     </style>
     <script>
         tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#3b82f6', accent: '#10b981' } } } }
@@ -84,36 +86,37 @@
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors duration-300">
 
-    <!-- Login Modal -->
-    <div id="login-modal" class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl">
+    <!-- Login Page (Full Screen) -->
+    <div id="login-modal" class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-primary/20">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border border-white/10">
             <div class="text-center mb-8">
-                <div class="bg-primary p-3 rounded-2xl text-white w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                    <i data-lucide="warehouse" class="w-8 h-8"></i>
+                <div class="bg-primary p-4 rounded-3xl text-white w-20 h-20 mx-auto mb-5 flex items-center justify-center shadow-lg shadow-primary/30">
+                    <i data-lucide="warehouse" class="w-10 h-10"></i>
                 </div>
                 <h1 class="text-2xl font-black tracking-tighter uppercase">TGT3 <span class="text-primary">WMS</span></h1>
-                <p class="text-slate-400 text-sm mt-2">Multi-User Warehouse System</p>
+                <p class="text-slate-400 text-sm mt-2">ระบบคลังสินค้าหลายผู้ใช้ • Real-time</p>
             </div>
             
-            <form id="login-form" class="space-y-4">
+            <form id="login-form" class="space-y-5">
                 <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-1 block">Username</label>
-                    <input type="text" id="username" required
-                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 px-4 py-4 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                           placeholder="Enter username">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-1 block">ชื่อผู้ใช้</label>
+                    <input type="text" id="username" required autocomplete="username"
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-4 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                           placeholder="กรอกชื่อผู้ใช้">
                 </div>
                 <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-1 block">Password</label>
-                    <input type="password" id="password" required
-                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 px-4 py-4 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                           placeholder="Enter password">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-1 block">รหัสผ่าน</label>
+                    <input type="password" id="password" required autocomplete="current-password"
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-4 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                           placeholder="กรอกรหัสผ่าน">
                 </div>
-                <button type="submit" class="w-full btn-primary py-4 rounded-2xl font-black uppercase text-sm shadow-xl hover:scale-[1.01] transition-all">
-                    Sign In
+                <button type="submit" class="w-full btn-primary py-4 rounded-2xl font-black uppercase text-sm shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    <span>เข้าสู่ระบบ</span>
                 </button>
             </form>
             
-            <div id="login-error" class="hidden mt-4 p-3 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-2xl text-xs font-black text-center"></div>
+            <div id="login-error" class="hidden mt-4 p-3 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-2xl text-xs font-bold text-center border border-rose-200 dark:border-rose-500/20"></div>
         </div>
     </div>
 
@@ -125,10 +128,16 @@
                 <div class="bg-primary p-1.5 rounded-lg text-white"><i data-lucide="warehouse" class="w-4 h-4"></i></div>
                 <h1 class="font-black text-sm tracking-tighter uppercase">TGT3 <span class="text-primary">WMS</span></h1>
             </div>
-            <button onclick="toggleTheme()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:scale-90 transition-all">
-                <i data-lucide="sun" class="w-5 h-5 hidden dark:block text-yellow-400"></i>
-                <i data-lucide="moon" class="w-5 h-5 block dark:hidden text-slate-500"></i>
-            </button>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 max-w-[80px] truncate" id="mobile-user-name" title="ผู้ใช้ปัจจุบัน"></span>
+                <button onclick="logout()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-500/20 text-rose-500 border border-rose-200 dark:border-rose-500/30 active:scale-90 transition-all" title="ออกจากระบบ">
+                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                </button>
+                <button onclick="toggleTheme()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:scale-90 transition-all">
+                    <i data-lucide="sun" class="w-5 h-5 hidden dark:block text-yellow-400"></i>
+                    <i data-lucide="moon" class="w-5 h-5 block dark:hidden text-slate-500"></i>
+                </button>
+            </div>
         </header>
 
         <!-- Loading Overlay -->
@@ -172,6 +181,10 @@
                 <button onclick="showTab('history')" id="d-nav-history" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left"><i data-lucide="history" class="w-4 h-4"></i><span>Logs</span></button>
             </nav>
             <div class="pt-6 border-t dark:border-slate-800 space-y-4">
+                <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                    <p class="text-[9px] font-black uppercase text-slate-400 mb-1">เข้าสู่ระบบในฐานะ</p>
+                    <p id="sidebar-user-name" class="text-sm font-black text-slate-700 dark:text-slate-200 truncate" title=""></p>
+                </div>
                 <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-center">
                     <p class="text-[9px] font-black uppercase text-slate-400 mb-1">System Time</p>
                     <p id="sidebar-clock" class="text-lg font-black tracking-tighter">00:00:00</p>
@@ -179,6 +192,10 @@
                 <button onclick="toggleTheme()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                     <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Theme</span>
                     <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-yellow-400"></i><i data-lucide="moon" class="w-4 h-4 block dark:hidden text-slate-400"></i>
+                </button>
+                <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-500 border border-rose-200 dark:border-rose-500/20 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <span>ออกจากระบบ (Logout)</span>
                 </button>
             </div>
         </aside>
@@ -349,6 +366,17 @@
     </div>
         
         <script>
+            // Initialize Lucide icons when DOM is ready
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('🚀 Multi-user system loaded');
+                // Try to initialize icons, but don't fail if not loaded
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                } else {
+                    console.warn('⚠️ Lucide not loaded, using fallback icons');
+                }
+            });
+            
             // API Configuration
             const API_BASE = window.location.origin + '/api';
             let authToken = localStorage.getItem('authToken');
@@ -358,13 +386,17 @@
             // API Helper Functions
             async function apiCall(endpoint, options = {}) {
                 const url = `${API_BASE}${endpoint}`;
+                const body = options.body != null && typeof options.body === 'object' && !(options.body instanceof FormData)
+                    ? JSON.stringify(options.body) : options.body;
                 const config = {
+                    method: options.method || 'GET',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`,
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
                         ...options.headers
                     },
-                    ...options
+                    ...options,
+                    body
                 };
 
                 try {
@@ -412,6 +444,14 @@
                 location.reload();
             }
 
+            function updateUserDisplay() {
+                const name = currentUser.fullName || currentUser.username || 'ผู้ใช้';
+                const elSidebar = document.getElementById('sidebar-user-name');
+                const elMobile = document.getElementById('mobile-user-name');
+                if (elSidebar) { elSidebar.textContent = name; elSidebar.title = name; }
+                if (elMobile) { elMobile.textContent = name; elMobile.title = name; }
+            }
+
             // Initialize Socket.IO
             function initializeSocket() {
                 socket = io({
@@ -426,16 +466,19 @@
                 });
 
                 socket.on('orders-updated', (data) => {
-                    console.log('Orders updated:', data);
+                    console.log('Orders updated (real-time):', data);
                     updateDashboard();
                     updateDispatchList();
+                    updateStockTable();
                 });
 
                 socket.on('dispatch-completed', (data) => {
-                    console.log('Dispatch completed:', data);
+                    console.log('Dispatch completed (real-time):', data);
                     updateDashboard();
+                    updateDispatchList();
+                    updateStockTable();
                     renderHistory();
-                    showToast(`Dispatch completed: ${data.totalQuantity} items`);
+                    if (data.totalQuantity != null) showToast(`ส่งสินค้าแล้ว ${data.totalQuantity} ชิ้น (อัพเดทแบบ Real-time)`);
                 });
 
                 socket.on('disconnect', () => {
@@ -443,81 +486,237 @@
                 });
             }
 
-            // Modified Dashboard Functions
+            // Modified Dashboard Functions - Using functions from index.html
             async function updateDashboard() {
                 try {
-                    const [stats, orders] = await Promise.all([
+                    // Load data from API instead of IndexedDB
+                    const [stats, orders, history] = await Promise.all([
                         apiCall('/dashboard/stats'),
-                        apiCall('/orders')
+                        apiCall('/orders'),
+                        apiCall('/history')
                     ]);
+                    
+                    // Update stats from server (real-time)
+                    document.getElementById('stat-today-shipped').innerText = stats.shippedToday ?? 0;
+                    document.getElementById('stat-overdue').innerText = stats.delay ?? 0;
+                    document.getElementById('stat-today-remaining').innerText = stats.remaining ?? 500;
+                    document.getElementById('stat-total-load').innerText = stats.totalLoad ?? 0;
 
-                    document.getElementById('stat-daily-target').innerText = stats.dailyTarget;
-                    document.getElementById('stat-today-shipped').innerText = stats.shippedToday;
-                    document.getElementById('stat-today-remaining').innerText = stats.remaining;
-                    document.getElementById('stat-overdue').innerText = stats.delay;
-                    document.getElementById('stat-total-load').innerText = stats.totalLoad;
-
+                    // Update table with API data
                     const tbody = document.getElementById('dashboard-table-body');
-                    tbody.innerHTML = orders.map(o => `
+                    tbody.innerHTML = orders.sort((a,b) => a.delivery_date.localeCompare(b.delivery_date)).map(o => `
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                            <td class="px-6 py-3 font-black text-primary uppercase">${o.customer_name}</td>
+                            <td class="px-6 py-3 font-black text-primary uppercase">${o.customer_name || 'Unknown'}</td>
                             <td class="px-6 py-3 font-bold text-slate-600 dark:text-slate-300">${o.kanban_id || '-'}</td>
-                            <td class="px-6 py-3 font-bold text-slate-400 text-center">${o.order_no}</td>
-                            <td class="px-6 py-3 font-medium">${o.sale_part}</td>
+                            <td class="px-6 py-3 font-bold text-slate-400 text-center">${o.order_no || '-'}</td>
+                            <td class="px-6 py-3 font-medium">${o.sale_part || '-'}</td>
                             <td class="px-6 py-3 text-center">
                                 <div class="text-[10px] font-bold ${o.delivery_date < new Date().toISOString().split('T')[0] ? 'text-rose-500' : 'text-slate-500'}">${o.delivery_date}</div>
                             </td>
                             <td class="px-6 py-3 text-center font-bold text-accent">${o.shipped_qty || 0}</td>
-                            <td class="px-6 py-3 text-center font-black ${o.remaining_qty > 0 ? 'text-rose-500' : 'text-slate-200'}">${o.remaining_qty}</td>
+                            <td class="px-6 py-3 text-center font-black ${o.remaining_qty > 0 ? 'text-rose-500' : 'text-slate-200'}">${o.remaining_qty || 0}</td>
                         </tr>
                     `).join('');
                 } catch (error) {
-                    console.error('Update dashboard error:', error);
+                    console.error('Error updating dashboard:', error);
+                    showToast('Error loading dashboard data');
                 }
             }
 
-            // Modified Dispatch Functions
-            async function updateDispatchList() {
+            async function openDelayReportModal() {
                 try {
-                    const search = document.getElementById('barcode-input').value.toUpperCase();
-                    let orders = await apiCall('/orders');
+                    // Load data from API
+                    const orders = await apiCall('/orders');
+                    const delayItems = orders.filter(o => o.remaining_qty > 0 && o.delivery_date < new Date().toISOString().split('T')[0])
+                                         .sort((a,b) => a.delivery_date.localeCompare(b.delivery_date));
                     
-                    if(search) {
-                        orders = orders.filter(o => 
-                            o.customer_name.toUpperCase().includes(search) || 
-                            o.sale_part.toUpperCase().includes(search) || 
-                            o.order_no.toUpperCase().includes(search) || 
-                            (o.kanban_id && o.kanban_id.toUpperCase().includes(search))
-                        );
+                    if (delayItems.length === 0) { 
+                        showToast("ไม่มีรายการที่ค้างส่ง (Delay) ในขณะนี้"); 
+                        return; 
                     }
-                    
-                    orders = orders.filter(o => o.remaining_qty > 0);
-                    
-                    const container = document.getElementById('dispatch-list-container');
-                    container.innerHTML = orders.length === 0 ? 
-                        `<div class="col-span-full py-20 text-center opacity-20 text-xs font-bold uppercase italic">ไม่มีรายการที่รอดำเนินการ</div>` : 
-                        orders.map(o => {
-                            const isSelected = selectedOrderIds.has(o.id);
-                            return `
-                            <div onclick="toggleOrderSelection(${o.id})" class="cursor-pointer bg-white dark:bg-slate-900 p-5 rounded-3xl border ${isSelected ? 'border-primary ring-2 ring-primary/10' : 'border-slate-100 dark:border-slate-800'} transition-all group shadow-sm flex items-center gap-4 active:scale-95">
-                                <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary text-white' : 'border-slate-200 dark:border-slate-700'}">${isSelected ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ''}</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-0.5"><span class="text-[9px] font-black text-primary uppercase tracking-tighter">${o.customer_name}</span><span class="text-[8px] font-black bg-accent/10 text-accent px-1.5 py-0.5 rounded uppercase">${o.kanban_id || '-'}</span></div>
-                                    <h4 class="font-black text-sm truncate uppercase tracking-tight">${o.sale_part}</h4>
-                                    <p class="text-[8px] font-bold text-slate-400 mt-0.5 uppercase">${o.order_no} | Due: ${o.delivery_date}</p>
-                                </div>
-                                <div class="text-right"><p class="text-[8px] font-black text-slate-300 uppercase">Stock</p><p class="font-black text-xl leading-none">${o.remaining_qty}</p></div>
-                            </div>
-                        `;
-                        }).join('');
+
+                    const reportDate = new Date().toLocaleDateString('th-TH', { 
+                        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                    });
+                    document.getElementById('report-date').innerText = reportDate;
+                    document.getElementById('report-total-items').innerText = delayItems.length;
+                    document.getElementById('report-total-units').innerText = delayItems.reduce((sum, o) => sum + (o.remaining_qty || 0), 0).toLocaleString();
+
+                    document.getElementById('report-table-body').innerHTML = delayItems.map(o => `
+                        <tr>
+                            <td class="py-5 px-4 font-black text-[11px] uppercase">${o.customer_name || 'Unknown'}</td>
+                            <td class="py-5 px-4"><div class="font-bold text-[11px] uppercase">${o.sale_part || '-'}</div><div class="text-[8px] font-black text-primary uppercase">KANBAN: ${o.kanban_id || '-'}</div></td>
+                            <td class="py-5 px-4 text-center font-black text-rose-500 text-[11px]">${o.delivery_date}</td>
+                            <td class="py-5 px-4 text-right font-black text-lg text-rose-600">${(o.remaining_qty || 0).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                    document.getElementById('delay-report-modal').classList.remove('hidden');
                     lucide.createIcons();
                 } catch (error) {
-                    console.error('Update dispatch list error:', error);
+                    console.error('Error loading delay report:', error);
+                    showToast('Error loading delay report');
                 }
             }
 
-            // Modified Excel Import
-            document.getElementById('excel-input').onchange = async (e) => {
+            // Selection and Dispatch Functions from index.html
+        function toggleOrderSelection(id) {
+            if (selectedOrderIds.has(id)) selectedOrderIds.delete(id);
+            else selectedOrderIds.add(id);
+            updateShipmentBar(); updateDispatchList(); 
+        }
+
+        function clearSelection() {
+            selectedOrderIds.clear(); updateShipmentBar(); updateDispatchList();
+            showToast("ยกเลิกการเลือกทั้งหมดแล้ว");
+        }
+
+        function updateShipmentBar() {
+            const bar = document.getElementById('shipment-bar');
+            const clearBtnList = document.getElementById('clear-selection-btn-list');
+            if (selectedOrderIds.size > 0) {
+                bar.classList.remove('hidden');
+                if(clearBtnList) clearBtnList.classList.remove('hidden');
+                document.getElementById('selected-count-label').innerText = `${selectedOrderIds.size} รายการที่เลือกไว้`;
+            } else {
+                bar.classList.add('hidden');
+                if(clearBtnList) clearBtnList.classList.add('hidden');
+            }
+        }
+
+        async function openMultiDispatchModal() {
+            try {
+                const orders = await apiCall('/orders');
+                const selectedOrders = orders.filter(o => selectedOrderIds.has(o.id));
+                
+                document.getElementById('multi-dispatch-list').innerHTML = selectedOrders.map(o => `
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="min-w-0 flex-1 pr-2">
+                                <p class="text-[9px] font-black text-primary uppercase">${o.customer_name || 'Unknown'}</p>
+                                <h4 class="font-black text-xs truncate uppercase dark:text-white">${o.sale_part || '-'}</h4>
+                                <p class="text-[8px] font-black text-accent uppercase">KANBAN: ${o.kanban_id || '-'}</p>
+                            </div>
+                            <div class="text-right"><p class="text-[8px] font-black text-slate-400 uppercase">Stock</p><p class="font-black text-sm dark:text-white">${o.remaining_qty || 0}</p></div>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">ส่ง:</span>
+                            <input type="number" id="qty-input-${o.id}" value="${o.remaining_qty || 0}" max="${o.remaining_qty || 0}" min="1" class="w-full bg-white dark:bg-slate-900 border-2 border-transparent focus:border-primary pl-12 pr-4 py-3 rounded-2xl outline-none font-black text-lg dark:text-white">
+                        </div>
+                    </div>
+                `).join('');
+                setSelectedRound('เช้า');
+                document.getElementById('multi-dispatch-modal').classList.remove('hidden');
+                lucide.createIcons();
+            } catch (error) {
+                console.error('Error opening dispatch modal:', error);
+                showToast('Error loading dispatch data');
+            }
+        }
+
+        async function executeMultiDispatch() {
+            try {
+                const orders = await apiCall('/orders');
+                const itemsToShip = [];
+                let totalQty = 0;
+                let primaryCustomer = "";
+                const destination = document.getElementById('multi-select-destination').value;
+
+                for(const id of Array.from(selectedOrderIds)) {
+                    const o = orders.find(ord => ord.id === id);
+                    if (!o) continue;
+                    
+                    const inputVal = parseInt(document.getElementById(`qty-input-${id}`).value);
+                    if(!inputVal || inputVal <= 0 || inputVal > (o.remaining_qty || 0)) { 
+                        showToast(`จำนวนไม่ถูกต้อง: ${o.sale_part}`); 
+                        return; 
+                    }
+
+                    itemsToShip.push({ 
+                        orderId: id, 
+                        salePart: o.sale_part, 
+                        orderNo: o.order_no, 
+                        kanbanId: o.kanban_id || '-', 
+                        qty: inputVal 
+                    });
+                    totalQty += inputVal; 
+                    primaryCustomer = o.customer_name || 'Unknown';
+                }
+
+                if (itemsToShip.length === 0) {
+                    showToast('กรุณาเลือกรายการที่จะส่ง');
+                    return;
+                }
+
+                // Call API to create dispatch
+                const result = await apiCall('/dispatch/create', {
+                    method: 'POST',
+                    body: {
+                        items: itemsToShip,
+                        destination: destination,
+                        round: selectedRoundInModal
+                    }
+                });
+
+                closeModal('multi-dispatch-modal'); 
+                selectedOrderIds.clear(); 
+                updateShipmentBar(); 
+                updateDispatchList();
+                showToast(`ส่งสินค้าเรียบร้อย ${totalQty} ชิ้น`); 
+                updateDashboard();
+                
+                // Show invoice if available
+                if (result.invoiceId) {
+                    viewInvoice(result.invoiceId);
+                }
+                
+            } catch (error) {
+                console.error('Error executing dispatch:', error);
+                showToast('Error processing dispatch: ' + error.message);
+            }
+        }
+
+            // Modified Dispatch List from index.html
+        async function updateDispatchList() {
+            try {
+                const search = document.getElementById('barcode-input').value.toUpperCase();
+                let orders = await apiCall('/orders');
+                
+                if(search) {
+                    orders = orders.filter(o => 
+                        (o.customer_name && o.customer_name.toUpperCase().includes(search)) || 
+                        (o.sale_part && o.sale_part.toUpperCase().includes(search)) || 
+                        (o.order_no && o.order_no.toUpperCase().includes(search)) || 
+                        (o.kanban_id && o.kanban_id.toUpperCase().includes(search))
+                    );
+                }
+                
+                orders = orders.filter(o => o.remaining_qty > 0);
+                
+                const container = document.getElementById('dispatch-list-container');
+                container.innerHTML = orders.length === 0 ? 
+                    `<div class="col-span-full py-20 text-center opacity-20 text-xs font-bold uppercase italic">ไม่มีรายการที่รอดำเนินการ</div>` : 
+                    orders.map(o => {
+                        const isSelected = selectedOrderIds.has(o.id);
+                        return `
+                        <div onclick="toggleOrderSelection(${o.id})" class="cursor-pointer bg-white dark:bg-slate-900 p-5 rounded-3xl border ${isSelected ? 'border-primary ring-2 ring-primary/10' : 'border-slate-100 dark:border-slate-800'} transition-all group shadow-sm flex items-center gap-4 active:scale-95">
+                            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary text-white' : 'border-slate-200 dark:border-slate-700'}">${isSelected ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ''}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-0.5"><span class="text-[9px] font-black text-primary uppercase tracking-tighter">${o.customer_name || 'Unknown'}</span><span class="text-[8px] font-black bg-accent/10 text-accent px-1.5 py-0.5 rounded uppercase">${o.kanban_id || '-'}</span></div>
+                                <h4 class="font-black text-sm truncate uppercase tracking-tight">${o.sale_part || '-'}</h4>
+                                <p class="text-[8px] font-bold text-slate-400 mt-0.5 uppercase">${o.order_no || '-'} | Due: ${o.delivery_date}</p>
+                            </div>
+                            <div class="text-right"><p class="text-[8px] font-black text-slate-300 uppercase">Stock</p><p class="font-black text-xl leading-none">${o.remaining_qty || 0}</p></div>
+                        </div>
+                    `;
+                    }).join('');
+                lucide.createIcons();
+            } catch (error) {
+                console.error('Update dispatch list error:', error);
+                showToast('Error loading dispatch data');
+            }
+        }
+            // Excel Import from index.html (modified for API)
+        document.getElementById('excel-input').onchange = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 
@@ -550,6 +749,8 @@
 
                         const rows = raw.slice(raw.indexOf(head) + 1).filter(r => r[map.cust]);
                         const orders = [];
+                        let newAdded = 0;
+                        let duplicates = 0;
 
                         for (const r of rows) {
                             const customerName = String(r[map.cust] || "").trim();
@@ -573,13 +774,14 @@
                             }
                         }
 
+                        // Call API to import orders
                         const result = await apiCall('/orders/import-excel', {
                             method: 'POST',
                             body: { orders }
                         });
 
                         if (result.duplicateCount > 0) {
-                            document.getElementById('duplicate-count-text').innerHTML = `พบข้อมูลซ้ำทั้งหมด <span class="text-amber-500 font-bold">${result.duplicateCount} รายการ</span>`;
+                            document.getElementById('duplicate-count-text').innerHTML = `พบข้อมูลซ้ำทั้งหมด <span class="text-amber-500 font-bold">${result.duplicateCount} รายการ</span> <br>ระบบทำการป้องกันข้อมูลเดิมและไม่นำเข้ารายการที่ซ้ำกันแล้ว`;
                             document.getElementById('duplicate-alert-modal').classList.remove('hidden');
                         }
 
@@ -596,8 +798,197 @@
                 reader.readAsArrayBuffer(file);
             };
 
-            // Login Form Handler
-            document.getElementById('login-form').onsubmit = async (e) => {
+            // Stock and History Functions from index.html (modified for API)
+        async function updateStockTable() {
+            try {
+                const search = document.getElementById('stock-search').value.toUpperCase();
+                let orders = await apiCall('/orders');
+                
+                if(search) {
+                    orders = orders.filter(o => 
+                        (o.customer_name && o.customer_name.toUpperCase().includes(search)) || 
+                        (o.sale_part && o.sale_part.toUpperCase().includes(search)) || 
+                        (o.kanban_id && o.kanban_id.toUpperCase().includes(search))
+                    );
+                }
+                
+                document.getElementById('stock-table-body').innerHTML = orders.map(o => `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        <td class="px-6 py-4 font-black text-primary uppercase">${o.customer_name || 'Unknown'}</td>
+                        <td class="px-6 py-4 font-bold text-slate-500">${o.kanban_id || '-'}</td>
+                        <td class="px-6 py-4"><div>${o.sale_part || '-'}</div><div class="text-[9px] text-slate-400 uppercase font-bold">${o.order_no || '-'}</div></td>
+                        <td class="px-6 py-4 text-center font-bold text-slate-400">${o.delivery_date}</td>
+                        <td class="px-6 py-4 text-center font-black text-accent">${o.shipped_qty || 0}</td>
+                        <td class="px-6 py-4 text-right font-black text-lg">${o.remaining_qty || 0}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error updating stock table:', error);
+                showToast('Error loading stock data');
+            }
+        }
+
+        async function renderHistory() {
+            try {
+                const search = document.getElementById('history-search').value.toUpperCase();
+                let history = await apiCall('/history');
+                
+                if(search) {
+                    history = history.filter(l => 
+                        (l.customer && l.customer.toUpperCase().includes(search)) || 
+                        (l.destination && l.destination.toUpperCase().includes(search))
+                    );
+                }
+                
+                document.getElementById('history-container').innerHTML = history.map(l => {
+                    const dt = new Date(l.timestamp);
+                    const items = JSON.parse(l.itemsJson || '[]');
+                    return `
+                        <div class="p-5 bg-white dark:bg-slate-900 border rounded-[2rem] shadow-sm hover:border-primary transition-all relative group">
+                            <div class="flex justify-between items-start mb-4">
+                                <div><span class="text-[8px] font-black bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 uppercase">${dt.toLocaleDateString()}</span><p class="text-[10px] font-black text-primary mt-1">${dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} น.</p></div>
+                                <div class="flex gap-2">
+                                    <span class="text-[8px] font-black uppercase px-2 py-0.5 rounded ${l.round === 'เช้า' ? 'round-am' : 'round-pm'}">รอบ${l.round}</span>
+                                    <button onclick="viewInvoice(${l.id})" class="text-slate-300 hover:text-primary transition-colors"><i data-lucide="printer" class="w-4 h-4"></i></button>
+                                    <button onclick="confirmRefund(${l.id})" class="text-slate-200 hover:text-orange-500 transition-colors" title="Refund/Return"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+                                </div>
+                            </div>
+                            <p class="font-black text-primary text-sm uppercase mb-1">${l.destination || 'TGT3'}</p>
+                            <p class="font-black text-xs uppercase mb-3 text-slate-400 truncate">${l.customer || 'Unknown'}</p>
+                            <div class="pt-3 border-t border-slate-50 dark:border-slate-800 flex justify-between items-end"><span class="text-[8px] font-black text-slate-300 uppercase">รวม</span><span class="text-xl font-black text-accent">${items.reduce((sum, i) => sum + i.qty, 0)}</span></div>
+                        </div>
+                    `;
+                }).join('');
+                lucide.createIcons();
+            } catch (error) {
+                console.error('Error rendering history:', error);
+                showToast('Error loading history data');
+            }
+        }
+
+        async function viewInvoice(hid) {
+            try {
+                const history = await apiCall('/history');
+                const h = history.find(item => item.id === hid);
+                
+                if (!h) {
+                    showToast('ไม่พบประวัติการส่งนี้');
+                    return;
+                }
+                
+                const dt = new Date(h.timestamp);
+                const items = JSON.parse(h.itemsJson || '[]');
+                
+                document.getElementById('inv-date').innerText = dt.toLocaleDateString('th-TH', { dateStyle: 'long' });
+                document.getElementById('inv-round').innerText = `รอบการส่ง: ${h.round}`;
+                document.getElementById('inv-id').innerText = `BILL ID: TGT3-${h.id.toString().padStart(5, '0')}`;
+                document.getElementById('inv-destination').innerText = h.destination || 'TGT3';
+                document.getElementById('inv-customer').innerText = h.customer || 'Unknown';
+                document.getElementById('inv-items-body').innerHTML = items.map(i => `
+                    <tr><td class="py-3"><div class="font-black text-[12px] uppercase">${i.salePart}</div><div class="text-[9px] font-bold text-accent uppercase">KANBAN: ${i.kanbanId || '-'}</div></td><td class="py-3 font-bold text-[10px] text-slate-400 uppercase">${i.orderNo}</td><td class="py-3 text-right font-black text-sm">${i.qty}</td></tr>
+                `).join('');
+                document.getElementById('inv-total-qty').innerText = items.reduce((sum, i) => sum + i.qty, 0);
+                
+                const qr = document.getElementById("qrcode"); 
+                qr.innerHTML = ""; 
+                new QRCode(qr, { text: `TGT3-VERIFY-${h.id}`, width: 64, height: 64 });
+                
+                document.getElementById('invoice-modal').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error viewing invoice:', error);
+                showToast('Error loading invoice');
+            }
+        }
+
+        function confirmRefund(logId) {
+            const modal = document.getElementById('refund-confirm-modal');
+            const confirmBtn = document.getElementById('confirm-refund-btn');
+            modal.classList.remove('hidden');
+            confirmBtn.onclick = () => executeRefund(logId);
+        }
+
+        async function executeRefund(logId) {
+            toggleLoading(true, "กำลังดำเนินการคืนสินค้า...");
+            try {
+                await apiCall('/dispatch/refund', {
+                    method: 'POST',
+                    body: { historyId: logId }
+                });
+                showToast("คืนสินค้าสำเร็จ (Refunded)");
+                closeModal('refund-confirm-modal');
+                renderHistory();
+                updateDashboard();
+                updateDispatchList();
+                updateStockTable();
+            } catch (err) {
+                alert("เกิดข้อผิดพลาด: " + err.message);
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        // Utility functions from index.html
+        function setSelectedRound(r) {
+            selectedRoundInModal = (r === 'เช้า' || r === 'AM') ? 'เช้า' : 'บ่าย';
+            const btnAM = document.getElementById('multi-btn-round-am');
+            const btnPM = document.getElementById('multi-btn-round-pm');
+            if(selectedRoundInModal === 'เช้า') { 
+                btnAM.classList.add('round-btn-active'); btnPM.classList.remove('round-btn-active'); 
+            } else { 
+                btnPM.classList.add('round-btn-active'); btnAM.classList.remove('round-btn-active'); 
+            }
+        }
+
+        function showTab(tab) {
+            ['dashboard', 'dispatch', 'stock', 'history'].forEach(t => {
+                const tabEl = document.getElementById(`tab-${t}`);
+                if (tabEl) tabEl.classList.add('hidden');
+                const dNav = document.getElementById(`d-nav-${t}`);
+                const mNav = document.getElementById(`m-nav-${t}`);
+                if (dNav) dNav.classList.remove('sidebar-btn-active');
+                if (mNav) mNav.classList.remove('sidebar-btn-active');
+            });
+            const activeTab = document.getElementById(`tab-${tab}`);
+            if (activeTab) activeTab.classList.remove('hidden');
+            const dNavActive = document.getElementById(`d-nav-${tab}`);
+            const mNavActive = document.getElementById(`m-nav-${tab}`);
+            if (dNavActive) dNavActive.classList.add('sidebar-btn-active');
+            if (mNavActive) mNavActive.classList.add('sidebar-btn-active');
+            if (tab === 'dashboard') updateDashboard();
+            if (tab === 'dispatch') { updateDispatchList(); setTimeout(() => document.getElementById('barcode-input').focus(), 200); }
+            if (tab === 'stock') updateStockTable();
+            if (tab === 'history') renderHistory();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function downloadInvoicePDF() { 
+            html2pdf().set({ margin: 10, filename: 'TGT3_Delivery_Bill.pdf', jsPDF: { format: 'a4' } }).from(document.getElementById('invoice-print-area')).save(); 
+        }
+        
+        function downloadReportPDF() { 
+            html2pdf().set({ margin: 10, filename: 'TGT3_Delay_Report.pdf', jsPDF: { format: 'a4' } }).from(document.getElementById('delay-report-print-area')).save(); 
+        }
+
+        function openConfirmModal() { 
+            document.getElementById('confirm-modal').classList.remove('hidden'); 
+        }
+        
+        async function clearOrdersOnly() { 
+            try {
+                await apiCall('/orders/clear', { method: 'DELETE' });
+                closeModal('confirm-modal'); 
+                showTab('dashboard'); 
+                showToast("ล้างรายการ Order แล้ว");
+            } catch (error) {
+                showToast('Error clearing orders');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('stock-search').oninput = updateStockTable;
+        document.getElementById('history-search').oninput = renderHistory;
+        document.getElementById('barcode-input').oninput = updateDispatchList;
+        document.getElementById('login-form').onsubmit = async (e) => {
                 e.preventDefault();
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
@@ -605,11 +996,14 @@
                 
                 try {
                     await login(username, password);
+                    updateUserDisplay();
                     document.getElementById('login-modal').classList.add('hidden');
                     document.getElementById('main-app').classList.remove('hidden');
                     initializeSocket();
                     updateClock();
+                    // แสดงหน้า Dashboard ทันทีหลัง Login
                     showTab('dashboard');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
                 } catch (error) {
                     errorDiv.textContent = error.message || 'Login failed';
                     errorDiv.classList.remove('hidden');
@@ -642,12 +1036,31 @@
             
             // Check if already logged in
             if (authToken) {
-                document.getElementById('login-modal').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
-                initializeSocket();
-                updateClock();
-                showTab('dashboard');
+                // Validate token before auto-login
+                try {
+                    const result = await apiCall('/auth/verify');
+                    currentUser = result.user || currentUser;
+                    updateUserDisplay();
+                    document.getElementById('login-modal').classList.add('hidden');
+                    document.getElementById('main-app').classList.remove('hidden');
+                    initializeSocket();
+                    updateClock();
+                    showTab('dashboard');
+                } catch (error) {
+                    // Token invalid - clear and show login
+                    console.log('❌ Token invalid, showing login');
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                    authToken = null;
+                    currentUser = {};
+                }
+            } else {
+                // No token - show login
+                console.log('🔑 No token found, showing login');
+                document.getElementById('login-modal').classList.remove('hidden');
+                document.getElementById('main-app').classList.add('hidden');
             }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         </script>
     </div>
 </body>

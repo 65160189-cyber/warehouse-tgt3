@@ -11,6 +11,15 @@ const helmet = require('helmet');
 require('dotenv').config();
 
 const app = express();
+const path = require('path');
+
+// Default route: multi-user real-time UI
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index-multiuser.html')));
+// Standalone version still at /index.html
+
+// Serve static files
+app.use(express.static(path.join(__dirname)));
+
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
@@ -121,7 +130,7 @@ const authenticateToken = (req, res, next) => {
         return res.status(401).json({ error: 'Access token required' });
     }
 
-    jwt.verify(token, process.env.JWT_SECRET || 'default_secret', (err, user) => {
+    jwt.verify(token, 'TGT3_WAREHOUSE_SECRET_2024', (err, user) => {
         if (err) {
             return res.status(403).json({ error: 'Invalid or expired token' });
         }
@@ -137,7 +146,7 @@ io.use((socket, next) => {
         return next(new Error('Authentication error'));
     }
     
-    jwt.verify(token, process.env.JWT_SECRET || 'default_secret', (err, user) => {
+    jwt.verify(token, 'TGT3_WAREHOUSE_SECRET_2024', (err, user) => {
         if (err) {
             return next(new Error('Authentication error'));
         }
@@ -187,7 +196,7 @@ app.post('/api/auth/login', (req, res) => {
             
             const token = jwt.sign(
                 { id: user.id, username: user.username, role: user.role },
-                process.env.JWT_SECRET || 'default_secret',
+                'TGT3_WAREHOUSE_SECRET_2024',
                 { expiresIn: '24h' }
             );
             
@@ -201,6 +210,19 @@ app.post('/api/auth/login', (req, res) => {
                 }
             });
         });
+    });
+});
+
+// Verify token endpoint
+app.get('/api/auth/verify', authenticateToken, (req, res) => {
+    res.json({
+        valid: true,
+        user: {
+            id: req.user.id,
+            username: req.user.username,
+            fullName: req.user.full_name,
+            role: req.user.role
+        }
     });
 });
 
@@ -405,7 +427,8 @@ app.post('/api/orders/import-excel', authenticateToken, (req, res) => {
         if (index < orders.length) {
             processOrder(orders[index++], processNext);
         } else {
-            // All orders processed
+            // All orders processed - broadcast for real-time sync
+            broadcastUpdate('orders-updated', { action: 'import', addedCount, duplicateCount });
             res.json({ 
                 message: 'Import completed', 
                 addedCount, 
@@ -415,6 +438,124 @@ app.post('/api/orders/import-excel', authenticateToken, (req, res) => {
     };
     
     processNext();
+});
+
+// Dispatch history (for multi-user frontend)
+app.get('/api/history', authenticateToken, (req, res) => {
+    db.all(`SELECT h.id, h.customer_id, h.round, h.destination, h.total_items, h.total_quantity, h.items_json as itemsJson, h.dispatched_by, h.created_at as timestamp,
+            c.name as customer
+            FROM dispatch_history h
+            LEFT JOIN customers c ON h.customer_id = c.id
+            ORDER BY h.created_at DESC`, [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+        res.json(rows || []);
+    });
+});
+
+// Create dispatch (multi dispatch) - update shipped_qty, insert history, broadcast
+app.post('/api/dispatch/create', authenticateToken, (req, res) => {
+    const { items, destination, round } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'Invalid dispatch items' });
+    }
+    const dest = destination || 'TGT3';
+    const roundName = (round === 'บ่าย' || round === 'PM') ? 'บ่าย' : 'เช้า';
+    let totalQty = 0;
+    const itemsJson = JSON.stringify(items.map(i => ({ orderId: i.orderId, salePart: i.salePart, orderNo: i.orderNo, kanbanId: i.kanbanId, qty: i.qty })));
+    items.forEach(i => { totalQty += (i.qty || 0); });
+    db.get('SELECT customer_id FROM orders WHERE id = ?', [items[0].orderId], (err, orderRow) => {
+        if (err || !orderRow) {
+            return res.status(400).json({ error: 'Order not found' });
+        }
+        const customerId = orderRow.customer_id;
+        db.run(`INSERT INTO dispatch_history (customer_id, round, destination, total_items, total_quantity, items_json, dispatched_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [customerId, roundName, dest, items.length, totalQty, itemsJson, req.user.id],
+            function(insErr) {
+                if (insErr) {
+                    return res.status(500).json({ error: 'Internal server error' });
+                }
+                const historyId = this.lastID;
+                let done = 0;
+                const expect = items.length;
+                items.forEach((it) => {
+                    db.run('UPDATE orders SET shipped_qty = shipped_qty + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [it.qty, it.orderId], function(upErr) {
+                        if (upErr) { return res.status(500).json({ error: 'Update order failed' }); }
+                        done++;
+                        if (done === expect) {
+                            broadcastUpdate('orders-updated', { action: 'dispatch' });
+                            broadcastUpdate('dispatch-completed', { totalQuantity: totalQty, invoiceId: historyId });
+                            res.json({ invoiceId: historyId, message: 'Dispatch created' });
+                        }
+                    });
+                });
+            }
+        );
+    });
+});
+
+// Refund dispatch - reverse shipped_qty, delete history row
+app.post('/api/dispatch/refund', authenticateToken, (req, res) => {
+    const { historyId } = req.body;
+    if (!historyId) {
+        return res.status(400).json({ error: 'historyId required' });
+    }
+    db.get('SELECT id, items_json FROM dispatch_history WHERE id = ?', [historyId], (err, row) => {
+        if (err || !row) {
+            return res.status(404).json({ error: 'Dispatch record not found' });
+        }
+        const items = JSON.parse(row.items_json || '[]');
+        let done = 0;
+        const expect = items.length;
+        if (expect === 0) {
+            db.run('DELETE FROM dispatch_history WHERE id = ?', [historyId], function() {
+                broadcastUpdate('orders-updated', { action: 'refund' });
+                broadcastUpdate('dispatch-completed', { action: 'refund' });
+                res.json({ message: 'Refunded' });
+            });
+            return;
+        }
+        items.forEach((it) => {
+            const orderId = it.orderId;
+            const qty = it.qty;
+            db.get('SELECT id FROM orders WHERE id = ?', [orderId], (err2, o) => {
+                if (!err2 && o) {
+                    db.run('UPDATE orders SET shipped_qty = CASE WHEN shipped_qty >= ? THEN shipped_qty - ? ELSE 0 END, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [qty, qty, orderId], function() {
+                        done++;
+                        if (done === expect) {
+                            db.run('DELETE FROM dispatch_history WHERE id = ?', [historyId], function() {
+                                broadcastUpdate('orders-updated', { action: 'refund' });
+                                broadcastUpdate('dispatch-completed', { action: 'refund' });
+                                res.json({ message: 'Refunded' });
+                            });
+                        }
+                    });
+                } else {
+                    done++;
+                    if (done === expect) {
+                        db.run('DELETE FROM dispatch_history WHERE id = ?', [historyId], function() {
+                            broadcastUpdate('orders-updated', { action: 'refund' });
+                            broadcastUpdate('dispatch-completed', { action: 'refund' });
+                            res.json({ message: 'Refunded' });
+                        });
+                    }
+                }
+            });
+        });
+    });
+});
+
+// Clear all orders (admin/reset)
+app.delete('/api/orders/clear', authenticateToken, (req, res) => {
+    db.run('DELETE FROM orders', [], function(err) {
+        if (err) {
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+        broadcastUpdate('orders-updated', { action: 'clear' });
+        res.json({ message: 'Orders cleared' });
+    });
 });
 
 // Health check

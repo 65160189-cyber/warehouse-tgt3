@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TGT3 Multi-user Warehouse System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        .round-am { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white; }
+        .round-pm { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .text-primary { color: #3b82f6; }
+        .text-accent { color: #10b981; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white">
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl p-8 space-y-6">
+            <div class="text-center">
+                <h1 class="text-3xl font-black uppercase tracking-tight">TGT3 <span class="text-primary">Warehouse</span></h1>
+                <p class="text-sm text-slate-500 mt-2">Multi-user System with Real-time Updates</p>
+            </div>
+            
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Username</label>
+                    <input type="text" id="username" required 
+                           class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary/20 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Password</label>
+                    <input type="password" id="password" required 
+                           class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary/20 outline-none">
+                </div>
+                <div id="login-error" class="hidden text-red-500 text-sm"></div>
+                <button type="submit" class="w-full btn-primary py-3 rounded-xl font-semibold hover:scale-[1.02] transition-all">
+                    Sign In
+                </button>
+            </form>
+            
+            <div class="text-center text-xs text-slate-400">
+                <p>Default: admin / admin123</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" class="hidden min-h-screen">
+        <!-- Header -->
+        <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-2xl font-black uppercase">TGT3 <span class="text-primary">Warehouse</span></h1>
+                    <div class="flex items-center gap-2 text-sm">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span id="online-users">0 users online</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <p class="text-sm font-medium" id="user-name">Admin</p>
+                        <p class="text-xs text-slate-500" id="user-role">Administrator</p>
+                    </div>
+                    <button onclick="logout()" class="px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 transition-all">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="p-6">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500">Today Shipped</p>
+                            <p class="text-3xl font-bold text-accent" id="stat-shipped">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center">
+                            <i data-lucide="package" class="w-6 h-6 text-accent"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500">Delayed Orders</p>
+                            <p class="text-3xl font-bold text-red-500" id="stat-delayed">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-red-500/10 rounded-xl flex items-center justify-center">
+                            <i data-lucide="alert-circle" class="w-6 h-6 text-red-500"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500">Daily Target</p>
+                            <p class="text-3xl font-bold text-primary" id="stat-target">500</p>
+                        </div>
+                        <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                            <i data-lucide="target" class="w-6 h-6 text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500">System Load</p>
+                            <p class="text-3xl font-bold text-slate-900" id="stat-load">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-slate-900/10 rounded-xl flex items-center justify-center">
+                            <i data-lucide="activity" class="w-6 h-6 text-slate-900"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Activity -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                <h2 class="text-xl font-bold mb-4">Real-time Activity</h2>
+                <div id="activity-log" class="space-y-2 max-h-64 overflow-y-auto">
+                    <div class="text-sm text-slate-500">Waiting for activity...</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-slate-900 text-white px-6 py-3 rounded-xl shadow-lg hidden z-50">
+        <span id="toast-message"></span>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = window.location.origin + '/api';
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        let socket = null;
+
+        // API Helper
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                ...options
+            };
+
+            if (config.body && typeof config.body === 'object') {
+                config.body = JSON.stringify(config.body);
+            }
+
+            try {
+                const response = await fetch(url, config);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Request failed');
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        // Login
+        async function login(username, password) {
+            const data = await apiCall('/auth/login', {
+                method: 'POST',
+                body: { username, password }
+            });
+            
+            authToken = data.token;
+            currentUser = data.user;
+            
+            localStorage.setItem('authToken', authToken);
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            return data;
+        }
+
+        // Logout
+        function logout() {
+            authToken = null;
+            currentUser = {};
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            if (socket) socket.disconnect();
+            location.reload();
+        }
+
+        // Initialize Socket
+        function initializeSocket() {
+            socket = io({
+                auth: {
+                    token: authToken
+                }
+            });
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                addActivity('Connected to real-time system', 'success');
+            });
+
+            socket.on('user-count', (data) => {
+                document.getElementById('online-users').textContent = `${data.count} users online`;
+            });
+
+            socket.on('orders-updated', (data) => {
+                addActivity(`Order ${data.action}: ${data.orderId}`, 'info');
+                updateDashboard();
+            });
+
+            socket.on('dispatch-completed', (data) => {
+                addActivity(`Dispatch completed: ${data.totalQty} items`, 'success');
+                updateDashboard();
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Disconnected from server');
+            });
+        }
+
+        // Update Dashboard
+        async function updateDashboard() {
+            try {
+                const stats = await apiCall('/dashboard/stats');
+                document.getElementById('stat-shipped').textContent = stats.shippedToday;
+                document.getElementById('stat-delayed').textContent = stats.delay;
+                document.getElementById('stat-target').textContent = stats.dailyTarget;
+                document.getElementById('stat-load').textContent = stats.totalLoad;
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+
+        // Add Activity
+        function addActivity(message, type = 'info') {
+            const log = document.getElementById('activity-log');
+            const time = new Date().toLocaleTimeString();
+            const colors = {
+                success: 'text-green-600',
+                error: 'text-red-600',
+                info: 'text-blue-600',
+                warning: 'text-yellow-600'
+            };
+            
+            const entry = document.createElement('div');
+            entry.className = `flex items-center gap-2 text-sm ${colors[type]}`;
+            entry.innerHTML = `
+                <span class="text-slate-400">${time}</span>
+                <span>${message}</span>
+            `;
+            
+            log.insertBefore(entry, log.firstChild);
+            
+            // Keep only last 20 entries
+            while (log.children.length > 20) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        // Show Toast
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
+        // Login Form Handler
+        document.getElementById('login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            
+            try {
+                await login(username, password);
+                document.getElementById('login-modal').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+                document.getElementById('user-name').textContent = currentUser.fullName || username;
+                document.getElementById('user-role').textContent = currentUser.role || 'User';
+                initializeSocket();
+                updateDashboard();
+                showToast('Login successful!');
+            } catch (error) {
+                errorDiv.textContent = error.message || 'Login failed';
+                errorDiv.classList.remove('hidden');
+            }
+        };
+
+        // Check if already logged in
+        if (authToken) {
+            // Validate token
+            apiCall('/auth/verify').then(() => {
+                document.getElementById('login-modal').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+                document.getElementById('user-name').textContent = currentUser.fullName || currentUser.username;
+                document.getElementById('user-role').textContent = currentUser.role || 'User';
+                initializeSocket();
+                updateDashboard();
+            }).catch(() => {
+                // Token invalid - clear and show login
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                authToken = null;
+                currentUser = {};
+            });
+        }
+
+        // Initialize Lucide icons
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+</html>
